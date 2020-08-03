@@ -1,0 +1,95 @@
+import numpy as np   #导入numpy 以np作为别名
+import folium
+import datetime
+import webbrowser
+from folium.plugins import HeatMap
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+
+
+def Kmeancsvreader(fileName):
+    f1 = open(fileName, "rb")
+    case = np.loadtxt(f1, delimiter=',', skiprows=0)
+    f1.close()
+    array = np.array(case)
+    return array
+
+def inpolygen(polygen,dataset):
+    m=dataset.shape[0]
+    list=[]
+    for i in range(m):
+        point=Point(dataset[i,1],dataset[i,2])
+        if polygen.contains(point):
+            list.append(i)
+    print(list,type(list))
+    return list
+
+#
+
+# def inpolygen(polygen,dataset):
+#     m=dataset.shape[0]
+#     list=np.zeros((m,1))
+#     for i in range(m):
+#         point=Point(dataset[i,1],dataset[i,2])
+#         if polygen.contains(point):
+#             print(i)
+#             list[i]=1
+#     print(list,type(list))
+#     return list
+
+#Mamhapolygon=Polygon([(40.726148, -74.010413),(40.715177, -73.976447),(40.708181, -73.999386),(40.715116, -74.017040)])
+
+np.set_printoptions(threshold=np.inf)
+dataset=Kmeancsvreader("New_York.csv")
+mscentre=np.load("mscentre_0.5.xlsx.npy")
+latitude = 40.7142
+longitude = -74.0064
+# NY_map= folium.Map(location=[latitude, longitude], zoom_start=12)
+# uniques,count= np.unique(mscentre,axis=0,return_counts = True) #去重 返回数量
+# n=uniques.shape[0]
+# max=np.max(count)
+# largeindex=np.where(count>=1000)
+# print(largeindex)
+# Marks=[['Time square', 40.757930, -73.985500],
+# ['Empire state building', 40.748228, -73.985496],
+# ['The Metropolitan Museum of Art', 40.779044, -73.962467],
+# ['Centre park', 40.780994, -73.966328],
+# ['Wall street', 40.706239, -74.009236],
+# ['Charging Bull', 40.705545, -74.013473],
+# ['Brooklyn Bridge', 40.708215, -73.999659],
+# ['Fifth Avenue', 40.774396, -73.965634]]
+# for i in range(uniques.shape[0]):
+#     if count[i]>=10:
+# for k in largeindex[0]:
+#     print(k,uniques[k,1],uniques[k,2])
+#     folium.Marker([uniques[k,1],uniques[k,2]], radius=5, fill=True, fill_color="green", fill_opacity=0.4).add_to(NY_map)
+
+
+
+
+# for q in Marks:
+#     folium.Marker([q[1],q[2]],popup=q[0], radius=5, fill=True, fill_color="green", fill_opacity=0.4).add_to(NY_map)
+# for j in range(m):
+#     if count[j]==1:
+#         count[j]=0
+# print(count,len(uniques))
+#m=mscentre.shape[0]
+# m=uniques.shape[0]
+# NY_map2= folium.Map(location=[latitude, longitude], zoom_start=12)
+NY_map_orig= folium.Map(location=[latitude, longitude], zoom_start=12)
+for i in dataset:
+    folium.Circle([i[1],i[2]], radius=5, color='red', fill=True,
+                  fill_color='yellow', fill_opacity=0.4).add_to(NY_map_orig)
+# Mamhapolygon=Polygon([(40.726148, -74.010413), (40.715177, -73.976447), (40.708181, -73.999386), (40.715116, -74.017040)])
+# Mamhapoly=[(40.726148, -74.010413), (40.715177, -73.976447), (40.708181, -73.999386), (40.715116, -74.017040)]
+# Mamhapoint=inpolygen(Mamhapolygon,dataset)
+# folium.PolyLine(Mamhapoly).add_to(NY_map2)
+# HeatMap(([dataset[i][1],dataset[i][2]] for i in Mamhapoint),radius=10).add_to(NY_map2)
+# folium.Circle([40.757930, -73.985500], radius=300, color='red', fill=True, fill_color='red',fill_opacity=0.4).add_to(NY_map2)
+
+
+# HeatMap(([float(uniques[i,1]),float(uniques[i,2]),float(count[i])*100] for i in range(m)),radius=10).add_to(NY_map)
+#HeatMap(([float(mscentre[i,1]),float(mscentre[i,2])] for i in range(m)),radius=12).add_to(NY_map)
+# NY_map.save('indextetst.html')
+# NY_map2.save('indexcut.html')
+NY_map_orig.save('indexori.html')
