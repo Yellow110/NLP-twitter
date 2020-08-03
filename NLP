@@ -1,0 +1,194 @@
+import numpy as np
+import regex as re
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import string
+import nltk
+from nltk.tokenize import word_tokenize
+import warnings
+from string import punctuation
+from nltk.stem import PorterStemmer
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import wordnet
+import lda
+from LDA import LDAtopic
+wnl = WordNetLemmatizer()
+porter_stemmer = PorterStemmer()
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# class sentence(self):
+#
+#     def __init__(self):
+
+def get_pos(tag):#返回词性
+    if tag.startswith('J'):
+        return wordnet.ADJ
+    elif tag.startswith('V'):
+        return wordnet.VERB
+    elif tag.startswith('N'):
+        return wordnet.NOUN
+    elif tag.startswith('R'):
+        return wordnet.ADV
+    else:
+        return wordnet.NOUN
+
+
+def Topicfilter(train,txt,topics):
+    # train_topic=pd.DataFrame(columns = ["time","lat","lon","1","txt"])
+    # txt_topic=pd.DataFrame(columns = ["txt"])
+    # txt_topic.append(txt.loc[i]) #写入
+    print("总长度：", len(txt), "topics:", topics)  # 输出文本长度
+    txt=txt[(txt.txt.str.contains(topics[0]))]#&(txt.txt.str.contains(topics[1]))]
+    train = train[(train.txt.str.contains(topics[0]))]# & (train.txt.str.contains(topics[1]))]
+    print("topic长度：", len(txt), "\n")
+    return txt,train
+
+def cleantxt(pattern,txt):
+    find=re.findall(pattern,txt) #找到符合pattern的文本，返回一个list
+    for i in find:
+        txt=re.sub(i,"",txt)  # 正则表达式, 要替换成的字符，要被替换的string
+    return txt
+
+# def cleanoption():
+#     if
+
+def Timeperiod(time):
+    time = np.array(train.time)
+    time_1 = np.max(list(map(int, time[1:])))
+    time_2 = np.min(list(map(int, time[1:])))
+    print(time_1, time_2)
+    return time_1, time_2
+
+def topic_find():
+    pass
+
+'显示所有内容'
+pd.set_option('display.max_columns', None)
+#显示所有行
+pd.set_option('display.max_rows', None)
+#设置value的显示长度为100，默认为50
+pd.set_option('max_colwidth',1000000)
+np.set_printoptions(threshold=10000000)
+#——————————————————————————————————————————————————————————————————————————————————————————————————————
+train = pd.read_csv('Amazon data.csv',encoding='ANSI',names=["star","review"])#读取文件
+train.review=train.review.str.lower() #Review中大写转小写
+txt_token=[]
+
+# Ftxt = Ftxt.apply(lambda x: ' '.join([w for w in x.split() if len(w) > 3]))
+for star in train.star:
+    star = re.sub('out of 5 stars', '',star)
+for txt in train.review:
+    #txt = cleantxt('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', str(txt))  #删https
+    #print("clean URL：",txt)
+    #txt=cleantxt("@[\w]*",str(txt)) #删除@
+    #print("clean @：",txt)
+    #txt=cleantxt("#[\w]*",str(txt)) #删除#
+    #print("clean #：",txt)
+    txt=cleantxt("\d",str(txt)) #去数字
+    #print("clean digit：",txt)
+    # add_punc = '.,;《》？！’ ” “”‘’@#￥% … &×（）——+【】{};；●，。&～、|\s:：!¡?¿...…'
+    punc='[0-9’!"#$%&\'()*+,-./:;<=>?@，。?★、…【】《》？“”‘’！[\\]^_`{|}~!¡?¿...…]+'
+    txt=re.sub(punc,' ',txt)
+    #print("remove punc",txt)
+    txt=re.sub(' +'," ",str(txt)) #去多个空格
+    #print("remove space",txt)
+    #txt=re.sub("(.)\\1+","$1",str(txt)) #去叠词
+    #print("remove repeating:",txt)
+    txt=re.sub(r'[^a-zA-Z /n/r//s]','',txt) #去非英文/
+    #去短词 ，代词， 介词
+    #print('remove other L:',txt)
+    # txt=str(txt).replace('\n', '')   #去 制表符 回车
+    # print(txt)
+    # txt=cleantxt("\W+",str(txt)) #分辨词边界
+    # print("split：",txt)
+    # 删除短词 :yes？ TBD
+    # emoticons = \   去表情
+    #     [('__EMOT_SMILEY', [':-)', ':)', '(:', '(-:', ]), \
+    #      ('__EMOT_LAUGH', [':-D', ':D', 'X-D', 'XD', 'xD', ]), \
+    #      ('__EMOT_LOVE', ['<3', ':\*', ]), \
+    #      ('__EMOT_WINK', [';-)', ';)', ';-D', ';D', '(;', '(-;', ]), \
+    #      ('__EMOT_FROWN', [':-(', ':(', '(:', '(-:', ]), \
+    #      ('__EMOT_CRY', [':,(', ':\'(', ':"(', ':((']), \
+    #      ]
+    #np.save("txt",txt)
+
+# 二 清洗：分词-tokenization:NLTK
+
+# slangs/abbreviations 缩略词: Netlingo and sms dictionaries
+# mistakes of lemmatizer 原型:Jazzy spell checker and JSpell checker
+# Wiki and Stanford dictionaries to identify stop words
+    txt=nltk.pos_tag(word_tokenize(txt))  #token 分词
+    word_token = []
+    for word in txt:
+        word_pos=get_pos(word[1])
+        # 词性还原 需要先标注词性
+        word_token.append(wnl.lemmatize(word[0],word_pos))# print(porter_stemmer.stem())#stemm 词干提取 NLP中先不考虑
+    #汇成一个document了
+    txt_token.append(word_token)
+    #print(txt_token)
+#txt_token=np.array(txt_token)
+np.save('txt_token.txt',str(txt_token))
+LDAmethod=LDAtopic()
+LDAmethod.load('txt_token.txt.npy')#输出最可能的5个topics
+
+# model = lda.LDA(n_topics = 5, n_iter = 50, random_state = 1)
+# model.fit(np.array(train.review))
+#________________________________________________________________________________
+#LDA 进行主题分析  每一篇文档代表了一些主题所构成的一个概率分布，而每一个主题又代表了很多单词所构成的一个概率分布。
+#1.计算文档-词汇库
+#2.计算主题-词汇库
+#Gibbs sampling
+
+
+
+
+
+
+
+
+# ---------------------------------------------------------——————————————————————————————————————————————————————
+# pos_sent = {}    # 存放正面的评论以及情感
+# neg_sent = {}    # 存放负面的评论以及情感
+# for review in business_id.get_reviews():
+#     if review.contains(aspect1):
+#         review_segment = get_segment(review, aspect)
+#         score = sentiment_model.predict_prob(review_segment)
+#         if score > threshold:
+#             pos_sent[review] = score
+#         else:
+#             neg_sent[review] = score
+#
+
+#训练positive 和 negative的模型 二分模型 SVM， Boosting ，NB  ，Entropy maximum  标注  来进行分类
+# 特点提取： Term Presence（词性）,Term Frequency, negation, n-grams and Part-of-Speech   #用什么做特征？？？
+  #aspect 匹配 1.列出所有可能的说法  2. 模糊匹配 word2vector
+  #平均得分 来平衡每个人的评判误差
+
+# 4、标记
+
+#twitter很短 表情  slang word, misspelling 俚语和错拼  把叠词替换成2occurring
+#情感分类
+
+#特征提取--用emotion表示
+#形容词 副词 动词
+
+# 词性标注-pos tags   Stanford postagger
+# 命名实体识别-ner   专有名词识别 运营商，手机一般没有   人 地 时 领域内名词
+# 分块-chunking
+# 二、词云
+#
+
+#训练模型， training set  包含 input feature vector 和 class label
+# and test set
+
+# 三、特征提取
+#用normal text 提换 特征
+#词的性质
+# 四、建立模型，文本表示
+#用来分类 positive and negative
+#逻辑回归模型 signore----线性 看判断边界  梯度向量法求w和t  二分问题
+#复杂度和过拟合
+
+#字典 的 时间复杂度低
+#Estimate Precision, Recall, Accuracy and F-measure and analyze the tweets.
