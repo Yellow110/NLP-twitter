@@ -1,0 +1,126 @@
+import numpy as np
+import folium
+import datetime
+
+
+# 加载数据
+def Kmeancsvreader(fileName):
+    f1 = open(fileName, "rb")
+    case = np.loadtxt(f1, delimiter=',', skiprows=0)
+    f1.close()
+    array = np.array(case)
+    return array
+
+def latlontodist(lat1,lon1,lat2,lon2):
+    R=6371   #地球半径 km
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = (np.sin(dlat / 2)) ** 2 + np.cos(lat1) * np.cos(lat2) * (np.sin(dlon / 2)) ** 2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    dist = c*R
+    return dist
+
+def removeNaN(centr):
+    Fcentr=np.nan_to_num(centr)
+    return Fcentr
+
+def indicentr():
+    pass
+
+def radius(cluster_res,k):
+    R=np.zeros((k,3))
+    for j in range(k):
+        index=np.nonzero(cluster_res[:, 0] == j)
+        if cluster_res[index[0]][:,1]!=[]:
+            minR=min(cluster_res[index[0]][:,1])
+            maxR=max(cluster_res[index[0]][:,1])
+            R[j,0:2]=(minR,maxR)
+    return R
+
+# 欧氏距离计算
+def eucliddist(x1,y1,x2,y2):
+    return np.sqrt(np.sum((x1-x2)**2+(y1-y2)**2))
+
+    return mscen
+
+# 为给定数据集构建一个包含K个随机质心的集合
+def randcenter(dataset,k):
+    m,n=dataset.shape
+    centor=np.zeros((k,n))   #存中心点的元组
+    #随机选k个index作为质心
+    for i in range(k):
+        randomindex=int(np.random.uniform(0,m))
+        centor[i,:]=dataset[randomindex,:]
+    return centor
+
+# k均值聚类
+def kmean(dataset,k):# 第一列存样本属于哪一簇 # 第二列存样本的到簇的中心点的误差
+    m, n = dataset.shape
+    cluster_res = np.zeros((m,2))   #（m，2）矩阵，来存（1）元素的clusternum  （2）与质心的偏差
+    cluster_change = True #聚类结果发生改变了么
+    centr=randcenter(dataset,k)  # 1.随机选质心
+    R=0 #收敛次数
+    while cluster_change:
+         R = R + 1
+         cluster_change= False
+         for i in range(m): #2.遍历样本
+             mindist=1000 #存最小距离
+             minindex=-1 #存距离最小的质心
+             for j in range(k): # 遍历质心
+                if latlontodist(dataset[i,1],dataset[i,2],centr[j,1],centr[j,2])<mindist:
+                   mindist=latlontodist(dataset[i,1],dataset[i,2],centr[j,1],centr[j,2])
+                   minindex = j
+                   # print(i,minindex)
+
+             if cluster_res[i,0]!=minindex:
+                 cluster_res[i,0]=minindex #把最接近的质心存下来
+                 cluster_res[i,1]=mindist #把与质心的距离存下来
+                 cluster_change = True
+
+                #4.更新质心
+
+         for p in range(k):
+                cluster_element = np.zeros((m, 3))
+                clusterindex=np.nonzero(cluster_res[:,0]==p) # 获取簇类所有的点
+                cluster_element=dataset[clusterindex[0]]
+                centr[p,:]=np.mean(cluster_element,axis=0) #axis=0 对列求平均     axis=1 对行求平均
+                #print(p, clusterindex, centr,cluster_element)
+    print('Cluster finish',R)
+    return centr,cluster_res
+
+def kmmark(data,centr,cluster_res):  #所有点的数据+中心点的数据
+    latitude = 40.7142
+    longitude = -74.0064
+    m, n = centr.shape
+    NY_map= folium.Map(location=[latitude, longitude], zoom_start=12)
+    color=['red','yellow','green','black','blue','purple','white','orange','pink','gray']
+    for j in range(m):
+     folium.Marker([centr[j, 1], centr[j, 2]], icon=folium.Icon(icon='cloud')).add_to(NY_map)
+     clusterindex = np.nonzero(cluster_res[:, 0] == j)
+     if len(clusterindex)!=0:
+      for i in range(len(clusterindex[0])):
+        folium.Circle([data[clusterindex[0][i],1], data[clusterindex[0][i],2]], radius=5, color=color[j], fill=True, fill_color=color[j],fill_opacity=0.4).add_to(NY_map)
+    NY_map.save('index.html')
+    print(j,"finish")
+
+# 主体函数
+starttime = datetime.datetime.now()
+k= 5  #簇数
+dataset=Kmeancsvreader("New_York.csv")     #载入数据
+centr,cluster_res = kmean(dataset,k)  #K-mean 聚合算法
+Fcentr=removeNaN(centr)
+
+endtime = datetime.datetime.now()
+print("Time:",endtime-starttime)
+kmmark(dataset,Fcentr,cluster_res)   # 画图
+Radius=radius(cluster_res,k)
+
+# Rmax=Radius[0,1]    #多次递归，找到范围小于R的集合
+# cluster_resre=cluster_res
+# while Rmax>15:
+#     clusterindex_re=np.nonzero(cluster_resre[:, 0] == 0)
+#     centr_re, cluster_resre =kmean(dataset[clusterindex_re[0]],k)
+#     Rmax = radius(cluster_resre, k)[0,1]
+#     print(centr_re,cluster_resre,Rmax)
+# centr_re=removeNaN(centr_re)
+# kmmark(dataset,centr_re,cluster_resre)
