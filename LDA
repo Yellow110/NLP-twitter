@@ -1,0 +1,81 @@
+import numpy as np
+import regex as re
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import string
+import nltk
+from nltk.tokenize import word_tokenize
+import warnings
+from string import punctuation
+from nltk.stem import PorterStemmer
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import wordnet
+import lda
+import codecs
+import collections
+
+class LDAtopic:
+    def __init__(self):
+        pass
+
+    def load(self,filename):
+        X =np.atleast_1d(np.array( np.load(filename)))    #读原始txt数据
+
+        wordSet = set()#建一个set来存不重复的词
+        for eachLine1 in X:
+            lineList1 = eachLine1.split(' ')
+            for i in range(len(lineList1)):
+                wordSet.add(lineList1[i].strip())
+        wordList = list(wordSet)
+
+        wordMatrix = [] #建词矩阵
+        for line in X:
+            docWords = line.strip().split(' ')
+            dict1 = collections.Counter(docWords)  # 统计每个词出现的次数
+            #print(dict1)
+            key1 = list(dict1.keys())  #关键词
+            #print(key1)
+            r1 = [] #存每个文档
+            for i in range(len(wordList)):
+                if wordList[i] in key1:
+                    r1.append(dict1[wordList[i]])  #统计每个txt中 词出现的次数
+                else:
+                    r1.append(0)  #没出现就存0
+            wordMatrix.append(r1)
+        X = np.array(wordMatrix) #转成array
+        #print(type(X),X)
+        #print("shape: {}\n".format(X.shape))
+
+        word =wordList  #不重复的单词
+        #print("type(word): {}".format(type(word)))
+        print("len(word): {}\n".format(len(word)))
+        #print(word[:6])
+        #return word
+
+        # titles = lda.datasets.load_reuters_titles()  #
+        # print("type(titles): {}".format(type(titles)))
+        # print("len(titles): {}\n".format(len(titles)))
+        # print(titles[:2])
+        # #return titles
+
+        model = lda.LDA(n_topics=20, n_iter=500, random_state=1)
+        model.fit(X)  #训练模型
+
+        topic_word = model.topic_word_#输出主题-单词分布矩阵
+        print("shape: {}".format(topic_word.shape))
+
+        n = 5   #每个topic下的5个出现最多的单词
+        for i, topic_dist in enumerate(topic_word):
+            topic_words = np.array(word)[np.argsort(topic_dist)][:-(n + 1):-1]
+            print('*Topic {}\n- {}'.format(i, ' '.join(topic_words)))
+        #return topic_words
+
+        doc_topic = model.doc_topic_ #输出文档-主题分布矩阵
+        print(doc_topic,len(doc_topic[0]))
+        #print("type(doc_topic): {}".format(type(doc_topic)))
+        #print("shape: {}".format(doc_topic.shape))
+
+        for n in range(len(doc_topic)): #输出每篇文章最可能的topic  一共20个topic
+            topic_most_pr = doc_topic.argmax()
+            print("doc: {} topic: {}".format(n, topic_most_pr))
