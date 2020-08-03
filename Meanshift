@@ -1,0 +1,153 @@
+import numpy as np   #导入numpy 以np作为别名
+import folium
+import datetime
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+
+def inpolygen(polygen,dataset):
+    m=dataset.shape[0]
+    print(type(polygen))
+    list=[]
+    for i in range(m):
+        point=Point(dataset[i,1],dataset[i,2])
+        if polygen.contains(point):
+            list.append(i)
+    print(list,type(list))
+    return list
+
+
+class geo_meanshift:
+    def __init__(self,use_gk,B,r,epis):
+        self.use_gk = use_gk  # 是否使用高斯内核
+        self.B = B  # Gauss内核的带宽
+        self.r = r  # 指定间距为300km
+        self.epis = epis  # mini 质心漂移距离
+
+    def csvreader(self,fileName):
+        f1 = open(fileName, "rb")
+        case = np.loadtxt(f1, delimiter=',', skiprows=0)
+        f1.close()
+        array = np.array(case)
+        return array
+#
+# def csvreader(filename):
+#     f1 = open(filename, "rb")
+#     case = np.loadtxt(f1, delimiter=',', skiprows=0)
+#     f1.close()
+#     array = np.array(case)
+#     return array
+    @classmethod
+    def latlontodist(self,centre,data):
+        R=6378
+        m=data.shape[0]
+        dist=np.zeros((m,1))
+        for i in range(m):
+            dlon = data[i,2] - centre[0,2]
+            dlat = data[i,1] - centre[0,1]
+            a = (np.sin(dlat / 2)) ** 2 + np.cos(data[i,1]) * np.cos(centre[0,1]) * (np.sin(dlon / 2)) ** 2
+            c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+            dist[i] = c*R
+        return dist
+    @classmethod
+    def gausskernel(self,B,dist):   #dist是数组
+        #核函数的定义使得偏移值对偏移向量的贡献,随样本与被偏移点的距离的不同而不同。权重系数使得不同样本的权重不同。
+        m = np.shape(dist)[0]
+        right = np.mat(np.zeros((m, 1)))
+        for i in range(m):
+            right[i, 0] = (-0.5 * dist * dist.T) / (B * B)
+            right[i, 0] = np.exp(right[i, 0])
+        left = 1/(B*np.sqrt(2*np.pi))
+        return left*right
+    @classmethod
+    def compute_mean_vector(self,centre,dataset,use_gk,B): #xi 遍历点
+        distances = dataset-centre   #与centre的距离矩阵
+        if use_gk:
+                sum1 = geo_meanshift.gausskernel(B,distances)
+                sum2 = sum1*(distances)
+                mean_vector = np.sum(sum2,axis=0)/np.sum(sum1,axis=0)    #高斯内核算距离
+        else:
+                mean_vector = np.sum(dataset - centre, axis=0) / dataset.shape[0] #平均值
+        print(mean_vector)
+        return mean_vector
+
+# #def clusterdist(point, group):  #找到组里最小距离
+#     min_distance = 10000.0
+#     for i in group:
+#         dist = latlontodist(point, i)
+#         if dist < min_distance:
+#             min_distance = dist
+#     return min_distance
+    @classmethod
+    def msclassify(self,centre,r,dataset):
+        m=dataset.shape[0]
+        label=np.zeros(m,1)
+        for i in range(centre.shape[0]):
+            for j in range(m):
+                if geo_meanshift.latlontodist(centre,dataset[i,1:3])<r:
+                    label[i,1]=i
+        return label
+
+# def distvector(points, data):   #算出每个点的#points：正在遍历的点  #data：原数据
+#     m,n=data.shape(data)
+#     dist=np.zeros((m,1))
+#     for i in range(m):
+#         dist[i,:]=np.sqrt((data-points).T.dot(data-points))
+#     return dist
+
+    def meanshift(self,B,r,dataset,epis): #最关键的就是计算每个点的偏移均值,直到shift的大小很小（就是迭代到收敛），记住此时的center。注意，这个迭代过程中遇到的点都应该归类到簇c。
+        m,n=dataset.shape
+        groupdist,delta=r,epis#最小的
+        dealedpoint = np.zeros((m, 1)) # 已经处理完的点 0：未处理 1：处理完了
+        centre=np.array(np.zeros((1,3))) #存中心点 id lon lat
+        #groups=np.zeros((1,3)) #存每个cluster的点  id lon lat
+        for i in range(m):#从任意未标记点开始
+         centre_temper = np.array([dataset[i, :]])
+         while dealedpoint[i,0]==0:   # 1、在未被标记的数据点中随机选择一个点作为中心center；
+            dist = geo_meanshift.latlontodist(centre_temper,(dataset))  # 计算每个点和中心点的距离向量
+            nearest_indexes = np.where(dist <= groupdist)[0].tolist()  # 2、找出离center距离r之内的所有点
+            nearset_data=dataset[nearest_indexes]
+            vector=geo_meanshift.compute_mean_vector(centre_temper,nearset_data,MS.use_gk,MS.B)  #漂移向量 3、以center为中心点，计算从center开始到集合M中每个元素的向量，将这些向量相加，得到向量shift。
+            if np.linalg.norm(vector)<=delta:# 6、如果收敛时当前簇c的center与其它已经存在的簇c2中心的距离小于阈值
+                dealedpoint[i,:] = 1  # 处理完了这个点
+                centre=np.vstack((centre,centre_temper)) #把中心点加到centre组里
+                print(i,"finish")
+                #groups=groups+nearset_data  #把对应圈里的点存在groups里
+            if np.linalg.norm(vector) > delta:
+                centre_temper=centre_temper+vector    #存中心点+漂移
+        return centre    #groups
+
+    def msmark(self,data,centr):  #所有点的数据+中心点的数据
+        latitude = 40.7142
+        longitude = -74.0064
+        m, n = centr.shape
+        NY_map= folium.Map(location=[latitude, longitude], zoom_start=12)
+        color=['red','yellow','green','black','blue','purple','white','orange','pink','gray']
+        for j in range(m):
+         #folium.Marker([centr[j, 1], centr[j, 2]], icon=folium.Icon(icon='cloud')).add_to(NY_map)
+         folium.Marker([centr[j, 1], centr[j, 2]], radius=5, color=color[1], fill=True, fill_color="green",fill_opacity=0.4).add_to(NY_map)
+        for i in range(data.shape[0]):
+            folium.Circle([data[i,1], data[i,2]], radius=5, color=color[0], fill=True, fill_color="red",fill_opacity=0.4).add_to(NY_map)
+        NY_map.save('index.html')
+        print("finish")
+
+
+#矩阵思想来计算
+
+#参数部分
+MS=geo_meanshift(use_gk=False,  #是否使用高斯内核
+B=1  #Gauss内核的带宽
+,r=0.5,   #指定间距为3km
+epis = 0.000001) #mini 质心漂移距离
+dataset=MS.csvreader("New_York.csv") #读入
+cluster_re=np.load("cluster_res.xlsx.npy") #读入
+Mamhapolygon=Polygon([(40.726148, -74.010413),(40.715177, -73.976447),(40.708181, -73.999386),(40.715116, -74.017040)])
+Mamhapoint=inpolygen(Mamhapolygon,dataset)
+print(len(Mamhapoint))
+dataset=dataset[Mamhapoint,:]
+#clusterindex_re=np.nonzero(cluster_re[:, 0] == 0)
+#dataset=dataset[clusterindex_re[0] ,:]
+#groups,centre=meanshift(B,r,dataset,epis)
+centre=MS.meanshift(MS.B,MS.r,dataset,MS.epis) #找到所有质心   #把所有点到各质心的cluster
+np.save("mscentre.xlsx",centre)
+#print(centre)
+MS.msmark(dataset,centre) #画图
